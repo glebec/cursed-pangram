@@ -69,7 +69,7 @@ beta term = case term of
 β :: LC -> LC
 β = beta
 
--- | [i ↦ s]t
+-- | [s ↦ i]t
 -- Replace index i with exp s in term t
 substitute :: Int -> LC -> LC -> LC
 substitute ix new term = case term of
