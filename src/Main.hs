@@ -15,7 +15,18 @@ import Prelude hiding
   )
 
 main :: IO ()
-main = do
+main = mainNonInteractive
+
+-- | Use for easier benchmarking.
+mainNonInteractive :: IO ()
+mainNonInteractive = do
+  let sample = "Sphinx of black quartz, judge my vow."
+  putStrLn "Checking (this will take a long time)…"
+  print . beta $ isPangram :$ (strToLC sample)
+
+-- | Replace `main` with this for an interactive version.
+mainInteractive :: IO ()
+mainInteractive = do
   putStrLn "Enter string to check for pangram:"
   str <- getLine
   putStrLn "Checking (this will take a long time)…"
