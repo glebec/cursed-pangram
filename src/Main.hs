@@ -323,10 +323,20 @@ lcToInt = go 0 where
   go i f | β (eq0 :$ f) == t = i
          | otherwise = go (i + 1) (β $ pred :$ f)
 
+strToLC :: String -> LC
+strToLC "" = nil
+strToLC (c:cs) = (intToLC . fromEnum $ c) .:: strToLC cs
+
+testStrToLC :: LC
+testStrToLC = β $ containsNat :$ (n5 .* n4 .* n3 .+ n5) :$ (strToLC "A") -- T~K
+
 {-
 check to see if an input contains all the letters in the
 alphabet, case-insensitive. The input string may contain
 non-alphabetic letters.
+
+ASCII upper: 65–90
+ASCII lower: 97–122
 
 1. convert to LC list of Nats
 1. filter for alphabet
