@@ -6,7 +6,10 @@ import Prelude hiding (id, not, and, or, succ, fst, snd, pred, map, flip, const)
 
 main :: IO ()
 main = do
-  putStrLn $ take 50 . show . beta $ isPangram :$ (strToLC "aBcD")
+  putStrLn "Enter string to check for pangram:"
+  str <- getLine
+  putStrLn "Checking (this will take a long time)…"
+  print . beta $ isPangram :$ (strToLC str)
 
 -- Resources include TAPL (Pierce)
 
@@ -382,11 +385,6 @@ intToLC 10 = β $ n5 .* n2
 intToLC 50 = β $ n5 .* n5 .* n2
 intToLC n = β $ succ :$ (intToLC $ n - 1)
 
-lcToInt :: LC -> Int
-lcToInt = go 0 where
-  go i f | β (eq0 :$ f) == t = i
-         | otherwise = go (i + 1) (β $ pred :$ f)
-
 strToLC :: String -> LC
 strToLC "" = nil
 strToLC (c:cs) = (intToLC . fromEnum $ c) .:: strToLC cs
@@ -394,45 +392,23 @@ strToLC (c:cs) = (intToLC . fromEnum $ c) .:: strToLC cs
 testStrToLC :: LC
 testStrToLC = β $ containsNat :$ (n5 .* n4 .* n3 .+ n5) :$ (strToLC "BBBBBBA") -- T~K
 
-n32 :: LC
-n32 = β $ n2 .^ n5
-
-n64 :: LC
-n64 = β $ n2 .^ (n5 .+ n1)
-
-n65 :: LC
-n65 = β $ n64 .+ n1
-
-n90 :: LC
+-- | ASCII Letter boundaries
+n65, n90, n97, n122 :: LC
+n65 = β $ (n2 .^ (n5 .+ n1)) .+ n1
 n90 = β $ n3 .^ n2 .* n5 .* n2
-
-n96 :: LC
-n96 = β $ n32 .* n3
-
-n97 :: LC
-n97 = β $ n32 .* n3 .+ n1
-
-n122 :: LC
+n97 = β $ (n2 .^ n5) .* n3 .+ n1
 n122 = β $ n2 .* (n2 .* n2 .* n3 .* n5 .+ n1)
-
--- | Convert lowercase to uppercase. If N > 96, subtract 32.
-toUpper :: LC
-toUpper = λ $ (v0 .> n96) :$ v0 .- n32 :$ v0
 
 -- | Normalize to A/a = 0, B/b = 1 etc.
 -- Nat -> Maybe Nat
 normalize :: LC
-normalize = λ $
+normalize = β $ λ $
   (n65 .<= v0) .&& (v0 .<= n90) -- [65..90] ~ [A..Z]
   :$ (just :$ v0 .- n65) -- Convert to [0..25]
   :$ ( (n97 .<= v0) .&& (v0 .<= n122) -- [97..122] ~ [a..z]
        :$ (just :$ v0 .- n97) -- Convert to [0..25]
        :$ nothing -- Discard non-letters
      )
-
--- | isPangram :: Str -> Bool
-isPangram :: LC
-isPangram = allTrue ∘ eachLetterPresent ∘ (mapMaybe :$ normalize)
 
 -- | [0..25] :: [Char]
 alphabet :: LC
@@ -444,9 +420,13 @@ alphabet = β $ y :$
     :$ nil -- else []
   ) :$ n0 -- go 0
 
--- | eachLetterPresent :: Str -> [Bool]
-eachLetterPresent :: LC
-eachLetterPresent = λ $ map :$ (flip :$ containsNat :$ v0) :$ alphabet
+-- | whichLettersPresent :: Str -> [Bool]
+whichLettersPresent :: LC
+whichLettersPresent = λ $ map :$ (flip :$ containsNat :$ v0) :$ alphabet
+
+-- | isPangram :: Str -> Bool
+isPangram :: LC
+isPangram = allTrue ∘ whichLettersPresent ∘ (mapMaybe :$ normalize)
 
 {-
 check to see if an input contains all the letters in the
