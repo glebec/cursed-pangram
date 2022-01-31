@@ -293,6 +293,17 @@ infixr 5 .::
 testList :: LC
 testList = β $ ((n1 .:: n2 .:: n3 .:: nil) :$ f :$ t) #= n1
 
+-- | Check if a given LC nat is in the LC list.
+-- Nat -> List -> Bool
+containsNat :: LC
+containsNat =
+  λ . λ $ v0 -- \n . \list
+    :$ f -- nil case
+    :$ (λ . λ $ (v1 #= v3) :$ t :$ (containsNat :$ v3 :$ v0)) -- cons case
+
+testContainsNat :: LC
+testContainsNat = β $ containsNat :$ n3 :$ (n1 .:: n2 .:: n3 .:: nil) -- T~K
+
 -- * Cursed Pangram
 
 intToLC :: Int -> LC
@@ -305,3 +316,14 @@ lcToInt :: LC -> Int
 lcToInt = go 0 where
   go i f | β (eq0 :$ f) == t = i
          | otherwise = go (i + 1) (β $ pred :$ f)
+
+{-
+check to see if an input contains all the letters in the
+alphabet, case-insensitive. The input string may contain
+non-alphabetic letters.
+
+1. convert to LC list of Nats
+1. filter for alphabet
+1. map to lowercase
+1. find each letter
+-}
