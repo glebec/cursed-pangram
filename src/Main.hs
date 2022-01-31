@@ -2,7 +2,17 @@
 
 module Main where
 
-import Prelude hiding (id, not, and, or, succ, fst, snd, pred, map, flip, const)
+import Prelude hiding
+  ( and
+  , flip
+  , fst
+  , map
+  , not
+  , or
+  , pred
+  , snd
+  , succ
+  )
 
 main :: IO ()
 main = do
@@ -95,14 +105,13 @@ shift amt floor term = case term of
 
 -- ** Combinators
 
-i, k, const, ki, c, flip :: LC
+i, k, ki, c, flip :: LC
 -- | I = \x . x
 -- aka `id`
 i = λ $ v0
-id = i
 -- | K = \a . \b . a
+-- aka `const`
 k = λ . λ $ v1
-const = k
 -- | KI = \a . \b . b
 ki = λ . λ $ v0 -- k :$ i
 -- | C = \f . \a . \b . f b a
@@ -280,7 +289,7 @@ infix 4 #=
 testEq :: LC
 testEq = β $ (succ :$ n5) #= (n2 .* (succ :$ n2)) -- T~K
 
--- ** Recursion
+-- ** Recursion from Scratch (Magic!)
 
 -- | Y = \f . (\x . f (x x)) (\x . f (x x))
 y :: LC
@@ -288,7 +297,7 @@ y = λ $ (λ $ v1 :$ (v0 :$ v0)) :$ (λ $ v1 :$ (v0 :$ v0))
 
 -- ** Maybe & Lists
 
--- Scott encoding
+-- Using Scott encodings
 
 -- | data Maybe a = Nothing | Just a
 -- NOTHING =   \n . \j . n
@@ -343,8 +352,8 @@ mapMaybe = y :$
       )
   )
 
--- | Check if a given LC nat is in the LC list.
--- Nat -> List -> Bool
+-- | containsNat :: Nat -> List -> Bool
+-- Check if a given LC nat is in the given LC list.
 containsNat :: LC
 containsNat = y :$
   ( λ -- \containsNat (Y-enabled recursion)
@@ -362,8 +371,8 @@ containsNat = y :$
 testContainsNat :: LC
 testContainsNat = β $ containsNat :$ n3 :$ (n1 .:: n2 .:: n3 .:: nil) -- T~K
 
--- | Fold a list of bools down using && (semantically speaking).
--- [Bool] -> Bool
+-- | allTrue :: [Bool] -> Bool
+-- Fold a list of bools down using && (semantically speaking).
 allTrue :: LC
 allTrue = y :$
   ( λ -- \allTrue (Y-enabled recursion)
@@ -379,12 +388,14 @@ allTrue = y :$
 
 -- * Cursed Pangram
 
+-- | One of two "impure" functions used to convert Haskell to LC.
 intToLC :: Int -> LC
 intToLC 0 = n0
 intToLC 10 = β $ n5 .* n2
 intToLC 50 = β $ n5 .* n5 .* n2
 intToLC n = β $ succ :$ (intToLC $ n - 1)
 
+-- | The second (and last) of two "impure" LC fns to convert Haskell to LC.
 strToLC :: String -> LC
 strToLC "" = nil
 strToLC (c:cs) = (intToLC . fromEnum $ c) .:: strToLC cs
@@ -399,8 +410,8 @@ n90 = β $ n3 .^ n2 .* n5 .* n2
 n97 = β $ (n2 .^ n5) .* n3 .+ n1
 n122 = β $ n2 .* (n2 .* n2 .* n3 .* n5 .+ n1)
 
--- | Normalize to A/a = 0, B/b = 1 etc.
--- Nat -> Maybe Nat
+-- | normalize :: Nat -> Maybe Nat
+-- Normalize to A/a to 0, B/b to 1 etc., dropping non-ASCII-letters.
 normalize :: LC
 normalize = β $ λ $
   (n65 .<= v0) .&& (v0 .<= n90) -- [65..90] ~ [A..Z]
@@ -411,6 +422,7 @@ normalize = β $ λ $
      )
 
 -- | [0..25] :: [Char]
+-- A list of 0-indexed Nat-represented characters from A to Z.
 alphabet :: LC
 alphabet = β $ y :$
   ( λ -- \go (Y-enabled recursion)
@@ -420,26 +432,12 @@ alphabet = β $ y :$
     :$ nil -- else []
   ) :$ n0 -- go 0
 
--- | whichLettersPresent :: Str -> [Bool]
+-- | whichLettersPresent :: [Char] -> [Bool]
+-- Convert alphabet into bools where true means "found in string."
 whichLettersPresent :: LC
 whichLettersPresent = λ $ map :$ (flip :$ containsNat :$ v0) :$ alphabet
 
--- | isPangram :: Str -> Bool
+-- | isPangram :: [Char] -> Bool
+-- A pure LC algorithm for detecting case-insensitive pangrams in ASCII text.
 isPangram :: LC
 isPangram = allTrue ∘ whichLettersPresent ∘ (mapMaybe :$ normalize)
-
-{-
-check to see if an input contains all the letters in the
-alphabet, case-insensitive. The input string may contain
-non-alphabetic letters.
-
-ASCII upper: 65–90
-ASCII lower: 97–122
-
-1. convert to LC list of Nats (DONE)
-1. mapMaybe (normalize letters and throw out others) (DONE)
-1. find each letter
-  1. Create a list of nums [0..25] (DONE)
-  1. Map each num to `find in normalized` (DONE)
-  1. Fold down using && (DONE)
--}
