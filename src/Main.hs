@@ -6,7 +6,7 @@ import Prelude hiding (id, not, and, or, succ, fst, snd, pred, map, flip, const)
 
 main :: IO ()
 main = do
-  print $ beta $ isPangram :$ (strToLC "aBcD")
+  putStrLn $ take 50 . show . beta $ isPangram :$ (strToLC "aBcD")
 
 -- Resources include TAPL (Pierce)
 
@@ -359,6 +359,21 @@ containsNat = y :$
 testContainsNat :: LC
 testContainsNat = β $ containsNat :$ n3 :$ (n1 .:: n2 .:: n3 .:: nil) -- T~K
 
+-- | Fold a list of bools down using && (semantically speaking).
+-- [Bool] -> Bool
+allTrue :: LC
+allTrue = y :$
+  ( λ -- \allTrue (Y-enabled recursion)
+  . λ -- \list (Scott encoding)
+  $ v0 -- use list to handle cases:
+    :$ t -- nil case -> true
+    :$   -- cons case ->
+      ( λ -- \head
+      . λ -- \tail
+      $ v1 :$ (v3 :$ v0) :$ f -- if head is true, recurse, else f
+      )
+  )
+
 -- * Cursed Pangram
 
 intToLC :: Int -> LC
@@ -417,11 +432,11 @@ normalize = λ $
 
 -- | isPangram :: Str -> Bool
 isPangram :: LC
-isPangram = eachLetterPresent ∘ (mapMaybe :$ normalize)
+isPangram = allTrue ∘ eachLetterPresent ∘ (mapMaybe :$ normalize)
 
 -- | [0..25] :: [Char]
 alphabet :: LC
-alphabet = y :$
+alphabet = β $ y :$
   ( λ -- \go (Y-enabled recursion)
   . λ -- \n :: Nat
   $ v0 .<= (n5 .^ n2) -- if n <= 25
@@ -446,5 +461,5 @@ ASCII lower: 97–122
 1. find each letter
   1. Create a list of nums [0..25] (DONE)
   1. Map each num to `find in normalized` (DONE)
-  1. Fold down using &&
+  1. Fold down using && (DONE)
 -}
