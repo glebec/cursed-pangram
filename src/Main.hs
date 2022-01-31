@@ -6,7 +6,7 @@ import Prelude hiding (not, and, or, succ, fst, snd, pred, map)
 
 main :: IO ()
 main = do
-  print $ lcToInt $ toUpper :$ n96 .+ n1
+  print $ beta $ isPangram :$ (strToLC "aBcD")
 
 -- Resources include TAPL (Pierce)
 
@@ -411,12 +411,22 @@ normalize = λ $
   :$ (just :$ v0 .- n65) -- Convert to [0..25]
   :$ ( (n97 .<= v0) .&& (v0 .<= n122) -- [97..122] ~ [a..z]
        :$ (just :$ v0 .- n97) -- Convert to [0..25]
-       :$ nothing
+       :$ nothing -- Discard non-letters
      )
 
 -- | isPangram :: Str -> Bool
 isPangram :: LC
 isPangram = (mapMaybe :$ normalize)
+
+-- | [0..25] :: [Char]
+alphabet :: LC
+alphabet = y :$
+  ( λ -- \go (Y-enabled recursion)
+  . λ -- \n :: Nat
+  $ v0 .<= (n5 .^ n2) -- if n <= 25
+    :$ v0 .:: (v1 :$ v0 .+ n1) -- then n : go (n - 1)
+    :$ nil -- else []
+  ) :$ n0 -- go 0
 
 {-
 check to see if an input contains all the letters in the
@@ -429,4 +439,7 @@ ASCII lower: 97–122
 1. convert to LC list of Nats
 1. mapMaybe (normalize letters and throw out others)
 1. find each letter
+  1. Create a list of nums [0..25]
+  1. Map each num to `find in normalized`
+  1. Fold down using &&
 -}
