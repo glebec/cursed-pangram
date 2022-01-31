@@ -2,7 +2,7 @@
 
 module Main where
 
-import Prelude hiding (not, and, or, succ, fst, snd, pred, map)
+import Prelude hiding (id, not, and, or, succ, fst, snd, pred, map, flip, const)
 
 main :: IO ()
 main = do
@@ -92,18 +92,19 @@ shift amt floor term = case term of
 
 -- ** Combinators
 
-i, k, ki, c :: LC
+i, k, const, ki, c, flip :: LC
 -- | I = \x . x
 -- aka `id`
 i = λ $ v0
+id = i
 -- | K = \a . \b . a
--- aka `const`
 k = λ . λ $ v1
+const = k
 -- | KI = \a . \b . b
 ki = λ . λ $ v0 -- k :$ i
 -- | C = \f . \a . \b . f b a
--- aka `flip`
 c = λ . λ . λ $ v2 :$ v0 :$ v1
+flip = c
 
 -- ** Church-Encoded Booleans
 
@@ -416,7 +417,7 @@ normalize = λ $
 
 -- | isPangram :: Str -> Bool
 isPangram :: LC
-isPangram = (mapMaybe :$ normalize)
+isPangram = eachLetterPresent ∘ (mapMaybe :$ normalize)
 
 -- | [0..25] :: [Char]
 alphabet :: LC
@@ -428,6 +429,10 @@ alphabet = y :$
     :$ nil -- else []
   ) :$ n0 -- go 0
 
+-- | eachLetterPresent :: Str -> [Bool]
+eachLetterPresent :: LC
+eachLetterPresent = λ $ map :$ (flip :$ containsNat :$ v0) :$ alphabet
+
 {-
 check to see if an input contains all the letters in the
 alphabet, case-insensitive. The input string may contain
@@ -436,10 +441,10 @@ non-alphabetic letters.
 ASCII upper: 65–90
 ASCII lower: 97–122
 
-1. convert to LC list of Nats
-1. mapMaybe (normalize letters and throw out others)
+1. convert to LC list of Nats (DONE)
+1. mapMaybe (normalize letters and throw out others) (DONE)
 1. find each letter
-  1. Create a list of nums [0..25]
-  1. Map each num to `find in normalized`
+  1. Create a list of nums [0..25] (DONE)
+  1. Map each num to `find in normalized` (DONE)
   1. Fold down using &&
 -}
