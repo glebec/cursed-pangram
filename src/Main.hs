@@ -275,6 +275,12 @@ infix 4 #=
 testEq :: LC
 testEq = β $ (succ :$ n5) #= (n2 .* (succ :$ n2)) -- T~K
 
+-- ** Recursion
+
+-- | Y = \f . (\x . f (x x)) (\x . f (x x))
+y :: LC
+y = λ $ (λ $ v1 :$ (v0 :$ v0)) :$ (λ $ v1 :$ (v0 :$ v0))
+
 -- ** Lists
 
 -- Could do nested pairs, but IMHO Scott encoding is nicer.
@@ -296,10 +302,10 @@ testList = β $ ((n1 .:: n2 .:: n3 .:: nil) :$ f :$ t) #= n1
 -- | Check if a given LC nat is in the LC list.
 -- Nat -> List -> Bool
 containsNat :: LC
-containsNat =
-  λ . λ $ v0 -- \n . \list
+containsNat = y :$
+  (λ . λ . λ $ v0 -- \containsNat . \n . \list
     :$ f -- nil case
-    :$ (λ . λ $ (v1 #= v3) :$ t :$ (containsNat :$ v3 :$ v0)) -- cons case
+    :$ (λ . λ $ (v1 #= v3) :$ t :$ (Var 4 :$ v3 :$ v0))) -- cons case
 
 testContainsNat :: LC
 testContainsNat = β $ containsNat :$ n3 :$ (n1 .:: n2 .:: n3 .:: nil) -- T~K
