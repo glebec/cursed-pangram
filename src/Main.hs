@@ -6,7 +6,7 @@ import Prelude hiding (not, and, or, succ, fst, snd, pred)
 
 main :: IO ()
 main = do
-  putStrLn "hello world"
+  print $ lcToInt . intToLC $ 100
 
 -- Resources include TAPL (Pierce)
 
@@ -17,6 +17,7 @@ data LC
   = Var Int
   | Lam LC
   | App LC LC
+  deriving Eq
 
 -- Some synonyms for convenience
 
@@ -30,6 +31,7 @@ v0, v1, v2 :: LC
 v0 = Var 0
 v1 = Var 1
 v2 = Var 2
+v3 = Var 3
 
 -- Custom Show for more legible output
 
@@ -97,7 +99,7 @@ i = λ $ v0
 -- aka `const`
 k = λ . λ $ v1
 -- | KI = \a . \b . b
-ki = k :$ i -- = λ . λ $ v0
+ki = λ . λ $ v0 -- k :$ i
 -- | C = \f . \a . \b . f b a
 -- aka `flip`
 c = λ . λ . λ $ v2 :$ v0 :$ v1
@@ -158,8 +160,8 @@ n0 = f
 -- | N1 = \f . \x . f x
 n1 = λ . λ $ v1 :$ v0
 -- | SUCC = \n . (\f . \x . f (n f x))
--- |      = \n . \f . f ∘ n f
-succ = λ . λ $ v0 ∘ (v1 :$ v0)
+--        = \n . \f . f ∘ n f
+succ = β $ λ . λ $ v0 ∘ (v1 :$ v0)
 -- And some others for fun.
 n2 = succ :$ n1
 n3 = succ :$ n2
@@ -169,9 +171,11 @@ n5 = succ :$ n4
 testNat :: LC
 testNat = β $ (succ :$ n2 :$ not :$ t) &= f -- T~K
 
+-- β-reductions are for optimization.
+
 add, mul, pow :: LC
 -- | ADD = \n . \m . \f . \x . n f (m f x) = n f ∘ m f
-add = λ . λ . λ $ (v2 :$ v0) ∘ (v1 :$ v0)
+add = β $ λ . λ . λ $ (v2 :$ v0) ∘ (v1 :$ v0)
 -- | MUL = \n . \m . \f . \x . n (m f) x
 --       = \n . \m . \f . n (m f)
 --       = \n . \m . n ∘ m
@@ -180,7 +184,7 @@ mul = compose
 -- | POW = \n . \m . \f . \x . (m n) f x
 --       = \n . \m . m n
 --       = C I
-pow = β $ c :$ i -- beta reduction is a micro-optimization.
+pow = β $ c :$ i
 
 (.+), (.*), (.^) :: LC -> LC -> LC
 n .+ m = add :$ n :$ m
@@ -217,11 +221,11 @@ x .&. y = pair :$ x :$ y
 
 -- | EQ0 = \n . n (K F) T
 eq0 :: LC
-eq0 = λ $ v0 :$ (k :$ f) :$ t
+eq0 = β $ λ $ v0 :$ (k :$ f) :$ t
 
 -- | PHI = \p . PAIR (SND p) (SUCC (SND p))
 phi :: LC
-phi = λ $ (snd :$ v0) .&. (succ :$ (snd :$ v0))
+phi = β $ λ $ (snd :$ v0) .&. (succ :$ (snd :$ v0))
 
 testPhi :: LC
 testPhi = let n2n0 = n2 .&. n0 in
@@ -231,7 +235,7 @@ testPhi = let n2n0 = n2 .&. n0 in
 
 -- | PRED = \n . FST (n PHI (PAIR N0 N0))
 pred :: LC
-pred = λ $ fst :$ (v0 :$ phi :$ (n0 .&. n0))
+pred = β $ λ $ fst :$ (v0 :$ phi :$ (n0 .&. n0))
 
 -- | SUB = \n . \k . k PRED n
 sub :: LC
@@ -246,7 +250,7 @@ testSub = β $ (eq0 :$ n5 .- n5) .&& (not ∘ eq0 :$ n5 .- n4) -- T~K
 
 -- | LEQ = \n . \k . EQ0 (SUB n k)
 leq :: LC
-leq = λ . λ $ eq0 :$ v1 .- v0
+leq = β $ λ . λ $ eq0 :$ v1 .- v0
 
 (.<=) :: LC -> LC -> LC
 n .<= k = leq :$ n :$ k
@@ -254,7 +258,7 @@ infix 4 .<=
 
 -- | GT = \n . \k . NOT (LEQ n k)
 gt :: LC
-gt = not ∘ leq
+gt = β $ not ∘ leq
 
 (.>) :: LC -> LC -> LC
 n .> k = gt :$ n :$ k
@@ -270,3 +274,34 @@ infix 4 #=
 
 testEq :: LC
 testEq = β $ (succ :$ n5) #= (n2 .* (succ :$ n2)) -- T~K
+
+-- ** Lists
+
+-- Could do nested pairs, but IMHO Scott encoding is nicer.
+-- data List a = Nil | a : List a
+
+-- | NIL =            \n . \c . n
+--   CONS = \h . \t . \n . \c . c h t
+nil, cons :: LC
+nil = k
+cons = λ . λ . λ . λ $ v0 :$ v3 :$ v2
+
+(.::) :: LC -> LC -> LC
+h .:: t = cons :$ h :$ t
+infixr 5 .::
+
+testList :: LC
+testList = β $ ((n1 .:: n2 .:: n3 .:: nil) :$ f :$ t) #= n1
+
+-- * Cursed Pangram
+
+intToLC :: Int -> LC
+intToLC 0 = n0
+intToLC 10 = β $ n5 .* n2
+intToLC 50 = β $ n5 .* n5 .* n2
+intToLC n = β $ succ :$ (intToLC $ n - 1)
+
+lcToInt :: LC -> Int
+lcToInt = go 0 where
+  go i f | β (eq0 :$ f) == t = i
+         | otherwise = go (i + 1) (β $ pred :$ f)
