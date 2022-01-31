@@ -258,7 +258,7 @@ infix 4 .<=
 
 -- | GT = \n . \k . NOT (LEQ n k)
 gt :: LC
-gt = β $ not ∘ leq
+gt = β $ not .: leq
 
 (.>) :: LC -> LC -> LC
 n .> k = gt :$ n :$ k
