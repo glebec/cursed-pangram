@@ -2,11 +2,11 @@
 
 module Main where
 
-import Prelude hiding (not, and, or, succ, fst, snd, pred)
+import Prelude hiding (not, and, or, succ, fst, snd, pred, map)
 
 main :: IO ()
 main = do
-  print $ lcToInt $ normalize :$ n96 .+ n1
+  print $ lcToInt $ toUpper :$ n96 .+ n1
 
 -- Resources include TAPL (Pierce)
 
@@ -33,6 +33,7 @@ v1 = Var 1
 v2 = Var 2
 v3 = Var 3
 v4 = Var 4
+v5 = Var 5
 
 -- Custom Show for more legible output
 instance Show LC where
@@ -250,7 +251,7 @@ testSub = β $ (eq0 :$ n5 .- n5) .&& (not ∘ eq0 :$ n5 .- n4) -- T~K
 
 -- | LEQ = \n . \k . EQ0 (SUB n k)
 leq :: LC
-leq = β $ λ . λ $ eq0 :$ v1 .- v0
+leq = β $ λ . λ $ eq0 :$ (v1 .- v0)
 
 (.<=) :: LC -> LC -> LC
 n .<= k = leq :$ n :$ k
@@ -281,13 +282,20 @@ testEq = β $ (succ :$ n5) #= (n2 .* (succ :$ n2)) -- T~K
 y :: LC
 y = λ $ (λ $ v1 :$ (v0 :$ v0)) :$ (λ $ v1 :$ (v0 :$ v0))
 
--- ** Lists
+-- ** Maybe & Lists
 
--- Could do nested pairs, but IMHO Scott encoding is nicer.
--- data List a = Nil | a : List a
+-- Scott encoding
 
--- | NIL =            \n . \c . n
---   CONS = \h . \t . \n . \c . c h t
+-- | data Maybe a = Nothing | Just a
+-- NOTHING =   \n . \j . n
+-- JUST = \a . \n . \j . j a
+nothing, just :: LC
+nothing = k
+just = λ . λ . λ $ v0 :$ v2
+
+-- | data List a = Nil | a : List a
+-- NIL =            \n . \c . n
+-- CONS = \h . \t . \n . \c . c h t
 nil, cons :: LC
 nil = k
 cons = λ . λ . λ . λ $ v0 :$ v3 :$ v2
@@ -305,12 +313,29 @@ map = y :$
   ( λ -- \map (Y-enabled recursion)
   . λ -- \mapper
   . λ -- \list (Scott encoding)
-  $ v0
-    :$ nil -- nil case (nil -> nil)
-    :$     -- cons case
+  $ v0 -- use list to handle cases:
+    :$ nil -- nil case -> nil)
+    :$     -- cons case ->
       ( λ -- \head
       . λ -- \tail
       $ (v3 :$ v1) .:: (v4 :$ v3 :$ v0) -- map head and cons to recursed tail
+      )
+  )
+
+-- | mapMaybe :: (a -> Maybe b) -> [a] -> [b]
+mapMaybe :: LC
+mapMaybe = y :$
+  ( λ -- \mapMaybe (Y-enabled recursion)
+  . λ -- \maybe-mapper
+  . λ -- \list (Scott encoding)
+  $ v0 -- use list to handle cases:
+    :$ nil -- nil case -> nil
+    :$     -- cons case ->
+      ( λ -- \head
+      . λ -- \tail
+      $ (v3 :$ v1) -- map to maybe
+        :$ (v4 :$ v3 :$ v0) -- nothing case: `mapMaybe maybeMapper tail`
+        :$ (λ $ v0 .:: (v5 :$ v4 :$ v1)) -- just case: cons result to recursed
       )
   )
 
@@ -321,9 +346,9 @@ containsNat = y :$
   ( λ -- \containsNat (Y-enabled recursion)
   . λ -- \n
   $ λ -- \list (Scott encoding)
-    v0
-    :$ f -- nil case
-    :$   -- cons case
+    v0 -- use list to handle cases:
+    :$ f -- nil case -> false
+    :$   -- cons case ->
       ( λ -- \head
       . λ -- \tail
       $ (v1 #= v3) :$ t :$ (v4 :$ v3 :$ v0) -- if ==, true, else recurse
@@ -356,12 +381,42 @@ testStrToLC = β $ containsNat :$ (n5 .* n4 .* n3 .+ n5) :$ (strToLC "BBBBBBA") 
 n32 :: LC
 n32 = β $ n2 .^ n5
 
+n64 :: LC
+n64 = β $ n2 .^ (n5 .+ n1)
+
+n65 :: LC
+n65 = β $ n64 .+ n1
+
+n90 :: LC
+n90 = β $ n3 .^ n2 .* n5 .* n2
+
 n96 :: LC
 n96 = β $ n32 .* n3
 
+n97 :: LC
+n97 = β $ n32 .* n3 .+ n1
+
+n122 :: LC
+n122 = β $ n2 .* (n2 .* n2 .* n3 .* n5 .+ n1)
+
 -- | Convert lowercase to uppercase. If N > 96, subtract 32.
+toUpper :: LC
+toUpper = λ $ (v0 .> n96) :$ v0 .- n32 :$ v0
+
+-- | Normalize to A/a = 0, B/b = 1 etc.
+-- Nat -> Maybe Nat
 normalize :: LC
-normalize = λ $ (v0 .> n96) :$ v0 .- n32 :$ v0
+normalize = λ $
+  (n65 .<= v0) .&& (v0 .<= n90) -- [65..90] ~ [A..Z]
+  :$ (just :$ v0 .- n65) -- Convert to [0..25]
+  :$ ( (n97 .<= v0) .&& (v0 .<= n122) -- [97..122] ~ [a..z]
+       :$ (just :$ v0 .- n97) -- Convert to [0..25]
+       :$ nothing
+     )
+
+-- | isPangram :: Str -> Bool
+isPangram :: LC
+isPangram = (mapMaybe :$ normalize)
 
 {-
 check to see if an input contains all the letters in the
@@ -372,7 +427,6 @@ ASCII upper: 65–90
 ASCII lower: 97–122
 
 1. convert to LC list of Nats
-1. filter for alphabet?
-1. map normalize
+1. mapMaybe (normalize letters and throw out others)
 1. find each letter
 -}
