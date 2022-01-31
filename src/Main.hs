@@ -345,8 +345,8 @@ containsNat :: LC
 containsNat = y :$
   ( λ -- \containsNat (Y-enabled recursion)
   . λ -- \n
-  $ λ -- \list (Scott encoding)
-    v0 -- use list to handle cases:
+  . λ -- \list (Scott encoding)
+  $ v0 -- use list to handle cases:
     :$ f -- nil case -> false
     :$   -- cons case ->
       ( λ -- \head
