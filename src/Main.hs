@@ -6,13 +6,13 @@ import Prelude hiding (not, and, or, succ, fst, snd, pred)
 
 main :: IO ()
 main = do
-  print $ lcToInt . intToLC $ 100
+  print $ lcToInt $ normalize :$ n96 .+ n1
 
 -- Resources include TAPL (Pierce)
 
 -- * The untyped λ-calculus via de Bruijn indices
 
--- | Syntax
+-- | Syntax: variables, lambdas, and applications.
 data LC
   = Var Int
   | Lam LC
@@ -32,9 +32,9 @@ v0 = Var 0
 v1 = Var 1
 v2 = Var 2
 v3 = Var 3
+v4 = Var 4
 
 -- Custom Show for more legible output
-
 instance Show LC where
   showsPrec p e =
     let showConst = showParen (p > 10) . showString
@@ -299,13 +299,36 @@ infixr 5 .::
 testList :: LC
 testList = β $ ((n1 .:: n2 .:: n3 .:: nil) :$ f :$ t) #= n1
 
+-- | map :: (a -> b) -> [a] -> [b]
+map :: LC
+map = y :$
+  ( λ -- \map (Y-enabled recursion)
+  . λ -- \mapper
+  . λ -- \list (Scott encoding)
+  $ v0
+    :$ nil -- nil case (nil -> nil)
+    :$     -- cons case
+      ( λ -- \head
+      . λ -- \tail
+      $ (v3 :$ v1) .:: (v4 :$ v3 :$ v0) -- map head and cons to recursed tail
+      )
+  )
+
 -- | Check if a given LC nat is in the LC list.
 -- Nat -> List -> Bool
 containsNat :: LC
 containsNat = y :$
-  (λ . λ . λ $ v0 -- \containsNat . \n . \list
+  ( λ -- \containsNat (Y-enabled recursion)
+  . λ -- \n
+  $ λ -- \list (Scott encoding)
+    v0
     :$ f -- nil case
-    :$ (λ . λ $ (v1 #= v3) :$ t :$ (Var 4 :$ v3 :$ v0))) -- cons case
+    :$   -- cons case
+      ( λ -- \head
+      . λ -- \tail
+      $ (v1 #= v3) :$ t :$ (v4 :$ v3 :$ v0) -- if ==, true, else recurse
+      )
+  )
 
 testContainsNat :: LC
 testContainsNat = β $ containsNat :$ n3 :$ (n1 .:: n2 .:: n3 .:: nil) -- T~K
@@ -328,7 +351,17 @@ strToLC "" = nil
 strToLC (c:cs) = (intToLC . fromEnum $ c) .:: strToLC cs
 
 testStrToLC :: LC
-testStrToLC = β $ containsNat :$ (n5 .* n4 .* n3 .+ n5) :$ (strToLC "A") -- T~K
+testStrToLC = β $ containsNat :$ (n5 .* n4 .* n3 .+ n5) :$ (strToLC "BBBBBBA") -- T~K
+
+n32 :: LC
+n32 = β $ n2 .^ n5
+
+n96 :: LC
+n96 = β $ n32 .* n3
+
+-- | Convert lowercase to uppercase. If N > 96, subtract 32.
+normalize :: LC
+normalize = λ $ (v0 .> n96) :$ v0 .- n32 :$ v0
 
 {-
 check to see if an input contains all the letters in the
@@ -339,7 +372,7 @@ ASCII upper: 65–90
 ASCII lower: 97–122
 
 1. convert to LC list of Nats
-1. filter for alphabet
-1. map to lowercase
+1. filter for alphabet?
+1. map normalize
 1. find each letter
 -}
