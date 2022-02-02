@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 module Main where
@@ -78,7 +79,7 @@ instance Show LC where
 
 -- | β-reduction
 beta :: LC -> LC
-beta term = case term of
+beta = \case
   var@(Var _) -> var
   Lam body -> Lam $ beta body
   App t1 t2 ->
@@ -97,7 +98,7 @@ beta term = case term of
 -- | [s ↦ i]t
 -- Replace index i with exp s in term t
 substitute :: Int -> LC -> LC -> LC
-substitute ix new term = case term of
+substitute ix new = \case
   var@(Var ix') | ix == ix' -> new
                 | otherwise -> var
   Lam body -> Lam $ substitute (ix + 1) (shift 1 0 new) body
@@ -106,7 +107,7 @@ substitute ix new term = case term of
 -- | ↑(d/c)t
 -- Shift indices > c by d places in term t
 shift :: Int -> Int -> LC -> LC
-shift amt floor term = case term of
+shift amt floor = \case
   var@(Var ix) | ix >= floor -> Var $ ix + amt
                | otherwise -> var
   Lam body -> Lam $ shift amt (floor + 1) body
