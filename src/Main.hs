@@ -156,8 +156,8 @@ infixl 2 .||
 infixl 3 .&&
 infixl 4 &=
 
-exampleBoolTest :: LC
-exampleBoolTest = β $ (t .&& f) &= (f .|| f) -- T~K
+testBool :: LC
+testBool = β $ (t .&& f) &= (f .|| f) -- T~K
 
 -- ** Composition
 
