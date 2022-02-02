@@ -22,7 +22,7 @@ main = mainNonInteractive
 mainNonInteractive :: IO ()
 mainNonInteractive = do
   let sample = "Sphinx of black quartz, judge my vow."
-  putStrLn "Checking (this will take a long time)…"
+  putStrLn "Checking (this will take some time)…"
   print . beta $ isPangram :$ (strToLC sample)
 
 -- | Replace `main` with this for an interactive version.
@@ -30,7 +30,7 @@ mainInteractive :: IO ()
 mainInteractive = do
   putStrLn "Enter string to check for pangram:"
   str <- getLine
-  putStrLn "Checking (this will take a long time)…"
+  putStrLn "Checking (this will take some time)…"
   print . beta $ isPangram :$ (strToLC str)
 
 -- Resources include TAPL (Pierce)
@@ -264,8 +264,21 @@ pred :: LC
 pred = β $ λ $ fst :$ (v0 :$ phi :$ (n0 .&. n0))
 
 -- | SUB = \n . \k . k PRED n
+-- This (initial) version is O(n^2) or worse.
+-- `mainNonInteractive` took ~30 minutes to run.
+sub' :: LC
+sub' = λ . λ $ v0 :$ pred :$ v1
+
+-- | SUB = λ n m s z.
+-- n (λ y. PAIR (s (FST y)) y) (PAIR z (K z))
+-- (m (λ k a b. b k) K)
+-- This (replacement) O(n) version thanks to https://github.com/mb64.
+-- `mainNonInteractive` now took ~40 seconds to run.
 sub :: LC
-sub = λ . λ $ v0 :$ pred :$ v1
+sub = λ . λ . λ . λ $ v3
+  :$ (λ $ (v2 :$ (fst :$ v0)) .&. v0)
+  :$ (v0 .&. (k :$ v0))
+  :$ (v2 :$ (λ . λ . λ $ v0 :$ v2) :$ k)
 
 (.-) :: LC -> LC -> LC
 n .- m = sub :$ n :$ m
